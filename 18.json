@@ -28,7 +28,7 @@
    "api": "./js/jable.js",
    "searchable": 1,
    "quickSearch": 1,
-   "filterable": 1
+   "filterable": 0
   }
  ],
  "spider": "https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/pg.jar",
