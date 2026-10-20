@@ -20,6 +20,15 @@
     "type": "rect",
     "ratio": 0.68
    }
+  },
+  {
+   "key": "jable",
+   "name": "Jable",
+   "type": 3,
+   "api": "./py/jable.py",
+   "searchable": 1,
+   "quickSearch": 1,
+   "filterable": 1
   }
  ],
  "spider": "https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/pg.jar",
