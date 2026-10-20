@@ -1,7 +1,7 @@
 {
  "sites": [
   {
-   "key": "py_huangguo",
+   "key": "huangguo",
    "name": "黄果短剧",
    "type": 3,
    "api": "./py/huangguo.py",
