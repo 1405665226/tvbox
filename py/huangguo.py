@@ -81,8 +81,6 @@ class Spider:
             {"type_id": "ai-huanlian", "type_name": "AI换脸"},
             {"type_id": "ai-mogai", "type_name": "AI魔改"},
             {"type_id": "ranks", "type_name": "排行榜"},
-            {"type_id": "chigua", "type_name": "黄果吃瓜"},
-            {"type_id": "topics", "type_name": "话题精选"},
         ]
         self.filters = {
             "ai-duanju": [{"key": "sort", "name": "排序", "value": [
@@ -100,12 +98,6 @@ class Spider:
             "ranks": [{"key": "rank_type", "name": "榜单", "value": [
                 {"n": "热播榜", "v": "hot"}, {"n": "推荐榜", "v": "recommend"},
                 {"n": "潜力榜", "v": "potential"}]}],
-            "chigua": [{"key": "cate", "name": "分类", "value": [
-                {"n": "全部", "v": "all"}, {"n": "热门吃瓜", "v": "remen"},
-                {"n": "AI原创", "v": "yuanchuang"}]}],
-            "topics": [{"key": "tid", "name": "话题", "value": [
-                {"n": "热门AI短剧", "v": "hot-aiduanju"}, {"n": "欧美短剧", "v": "oumei-duanju"},
-                {"n": "天才男友", "v": "tiancai-nantong"}, {"n": "明星换脸", "v": "mingxing-huanlian"}]}],
         }
 
     def _headers(self, referer=None):
@@ -151,7 +143,6 @@ class Spider:
                     data = gzip.decompress(data)
                 except Exception:
                     pass
-            # 去掉 UTF-32/UTF-16 BOM，避免 lxml "encoding not supported" 报错
             for bom, enc in ((b"\xff\xfe\x00\x00", "utf-32"), (b"\x00\x00\xfe\xff", "utf-32"),
                              (b"\xff\xfe", "utf-16"), (b"\xfe\xff", "utf-16")):
                 if data[:len(bom)] == bom:
@@ -232,7 +223,6 @@ class Spider:
         return u
 
     def _img_src(self, u):
-        """剔除 CDN 防盗链的 auth_key 等查询参数，得到不过期的稳定直链"""
         u = self._fix(u or "")
         if u.startswith("http") and "?" in u:
             u = re.sub(r"\?.*", "", u)
@@ -249,7 +239,6 @@ class Spider:
         return "http://127.0.0.1:9978/proxy?do=py"
 
     def _proxy_pic(self, u):
-        """图片走壳本地代理，由 localProxy 解密后返回真实图片"""
         u = self._img_src(u)
         if not u:
             return ""
@@ -259,7 +248,6 @@ class Spider:
         return self.getProxyUrl() + "&url=" + enc + "&type=img"
 
     def _decrypt_img(self, raw):
-        """AES-128-CBC 解密站点封面字节；无加密或解密失败时原样返回"""
         if not raw or len(raw) % 16 != 0 or _AES is None:
             return raw
         try:
@@ -388,7 +376,6 @@ class Spider:
         return int(m.group(1)) if m else 0
 
     def _api_items(self, path, params=None):
-        """站点 JSON 接口优先，行为接近真实浏览器持续访问"""
         try:
             data = self._get(self.host + path, asjson=True)
         except Exception:
@@ -469,13 +456,6 @@ class Spider:
             "vod_remarks": remarks,
         }
 
-    def _api_category(self, tid, sort, pg, per=24):
-        items, pagination = self._api_items(
-            "/api/videos/category/" + tid,
-            params={"page": pg, "size": per, "sort": sort} if False else None,
-        )
-        return items, pagination
-
     def _ensure_cates(self):
         if getattr(self, "categories", None):
             if not getattr(self, "filters", None):
@@ -488,38 +468,8 @@ class Spider:
             {"type_id": "ai-huanlian", "type_name": "AI换脸"},
             {"type_id": "ai-mogai", "type_name": "AI魔改"},
             {"type_id": "ranks", "type_name": "排行榜"},
-            {"type_id": "chigua", "type_name": "黄果吃瓜"},
-            {"type_id": "topics", "type_name": "话题精选"},
         ]
         self.filters = dict()
-
-    def _is_encrypted(self, url):
-        if not url:
-            return False
-        try:
-            from urllib.parse import urlparse as _up
-            return _up(url).hostname in self.img_hosts
-        except Exception:
-            return False
-
-    def _wrap_pic(self, pic):
-        return self._proxy_pic(pic)
-
-    @staticmethod
-    def _remarks(item):
-        if not isinstance(item, dict):
-            return ""
-        if item.get("is_finished"):
-            try:
-                total = int(item.get("episode_count") or item.get("total_episodes") or 0)
-            except Exception:
-                total = 0
-            return ("全%d集" % total) if total else "已完结"
-        try:
-            ep = int(item.get("episode_count") or 0)
-        except Exception:
-            ep = 0
-        return ("更新至%d集" % ep) if ep else ""
 
     def _category_api(self, base_id, sort, page, per=20):
         result = {"list": [], "page": page, "pagecount": 1, "limit": per, "total": 0}
@@ -549,56 +499,6 @@ class Spider:
 
     def _category_random(self, base_id):
         return self._category_api(base_id, "random", 1)
-
-    def _category_chigua(self, cate, page):
-        per = 12
-        result = {"list": [], "page": page, "pagecount": 1, "limit": per, "total": 0}
-        try:
-            if cate == "remen":
-                path = "/chigua/remen/page/%d/" % page if page > 1 else "/chigua/remen/"
-            elif cate == "yuanchuang":
-                path = "/chigua/yuanchuang/page/%d/" % page if page > 1 else "/chigua/yuanchuang/"
-            else:
-                path = "/chigua/page/%d/" % page if page > 1 else "/chigua/"
-            html = self._get(self.host + path)
-            if not html:
-                return result
-            posts = re.findall(r'<a[^>]*class="hg-post-card"[^>]*href="(/archives/(\d+)/)"[^>]*>.*?<h3>(.*?)</h3>', html, re.DOTALL)
-            for href, pid, title in posts:
-                pos = html.find('href="%s"' % href)
-                chunk = html[pos:pos + 600] if pos >= 0 else ""
-                pm = re.search(r'data-src="(https?://[^"]+)"', chunk) or re.search(r'src="(https?://[^"]+)"', chunk)
-                result["list"].append({"vod_id": "archives_%s" % pid, "vod_name": title.strip(), "vod_pic": self._proxy_pic(pm.group(1)) if pm else "", "vod_remarks": "吃瓜"})
-            pm2 = re.search(r'data-pages="(\d+)"', html)
-            result["pagecount"] = int(pm2.group(1)) if pm2 else (page if len(result["list"]) < per else page + 1)
-            result["total"] = len(result["list"])
-        except Exception:
-            pass
-        return result
-
-    def _category_topics(self, topic, page):
-        per = 20
-        result = {"list": [], "page": page, "pagecount": 1, "limit": per, "total": 0}
-        try:
-            path = "/topics/%s/?page=%d" % (topic, page) if topic and page > 1 else ("/topics/%s/" % topic if topic else "/topics/")
-            html = self._get(self.host + path)
-            if not html:
-                return result
-            cards = re.findall(r'<div[^>]*class="hg-drama-card"[^>]*>.*?</div>\s*</div>\s*</div>', html, re.DOTALL)
-            for c in cards:
-                lm = re.search(r'href="(/detail/(\d+)/)"', c)
-                if not lm:
-                    continue
-                tm = re.search(r'hg-drama-card__title[^>]*><a[^>]*>([^<]+)</a>', c)
-                pm = re.search(r'data-src="(https?://[^"]+)"', c) or re.search(r'src="(https?://[^"]+)"', c)
-                em = re.search(r'hg-drama-card__episode[^>]*>([^<]+)', c)
-                result["list"].append({"vod_id": lm.group(2), "vod_name": tm.group(1).strip() if tm else ("视频%s" % lm.group(2)), "vod_pic": self._proxy_pic(pm.group(1)) if pm else "", "vod_remarks": em.group(1).strip() if em else ""})
-            pm2 = re.search(r'data-pages="(\d+)"', html)
-            result["pagecount"] = int(pm2.group(1)) if pm2 else (page if len(result["list"]) < per else page + 1)
-            result["total"] = len(result["list"])
-        except Exception:
-            pass
-        return result
 
     def homeContent(self, filter=None):
         self._ensure_cates()
@@ -632,10 +532,6 @@ class Spider:
             return self.homeVideoContent()
         if tid in ("ranks", "ranks/hot", "rank"):
             return self._category_ranks(ext.get("rank_type", "hot"), pg)
-        if tid == "chigua":
-            return self._category_chigua(ext.get("cate", "all"), pg)
-        if tid == "topics":
-            return self._category_topics(ext.get("tid", ""), pg)
         sort = ext.get("sort", "latest")
         if sort == "original":
             sort = "hot"
@@ -658,8 +554,6 @@ class Spider:
         vid = vid.strip()
         if not vid:
             return {"list": []}
-        if vid.startswith("archives_"):
-            return self._detail_archives(vid.replace("archives_", ""))
         return self._detail_video(vid)
 
     def _detail_video(self, vid):
@@ -788,34 +682,6 @@ class Spider:
                         ep_srcs["1"] = src
         return ep_srcs
 
-    def _detail_archives(self, post_id):
-        result = {"list": []}
-        try:
-            html = self._get(self.host + "/archives/%s/" % post_id)
-            if not html:
-                return result
-            tm = re.search(r'<title>(.*?)</title>', html)
-            title = (tm.group(1).replace(" - 黄果短剧", "").strip()) if tm else ("吃瓜%s" % post_id)
-            pm = re.search(r'data-src="(https?://[^"]+)"', html) or re.search(r'src="(https?://[^"]+)"', html)
-            pic = self._proxy_pic(pm.group(1)) if pm else ""
-            video_url = ""
-            m = re.search(r'<video[^>]+src="(https?://[^"]+)"', html)
-            if m:
-                video_url = m.group(1)
-            if not video_url:
-                m = re.search(r'<iframe[^>]+src="(https?://[^"]+)"', html)
-                if m:
-                    video_url = m.group(1)
-            if not video_url:
-                m = re.search(r'(https?://[^\s"\'<>]+\.(?:m3u8|mp4)[^\s"\'<>]*)', html)
-                if m:
-                    video_url = m.group(1)
-            play_url = "第1集$%s" % video_url if video_url else "第1集$%s" % post_id
-            result["list"].append({"vod_id": "archives_%s" % post_id, "vod_name": title, "vod_pic": pic, "vod_content": "吃瓜内容", "vod_play_from": "黄果短剧", "vod_play_url": play_url})
-        except Exception:
-            pass
-        return result
-
     def searchContent(self, key, quick=False, pg="1"):
         result = {"list": [], "page": 1, "pagecount": 1, "limit": 20, "total": 0}
         try:
@@ -863,18 +729,6 @@ class Spider:
             if ".mp4" in raw.lower():
                 result["format"] = "video/mp4"
             result["url"] = raw
-            return result
-        if raw.startswith("archives_"):
-            d = self._detail_archives(raw.replace("archives_", ""))
-            pu = (d.get("list") or [{}])[0].get("vod_play_url", "")
-            parts = pu.split("$", 1)
-            if len(parts) == 2 and parts[1].startswith("http"):
-                if ".mp4" in parts[1].lower():
-                    result["format"] = "video/mp4"
-                result["url"] = parts[1]
-                return result
-            result["parse"] = 1
-            result["url"] = "%s/archives/%s/" % (self.host, raw.replace("archives_", ""))
             return result
         if raw.startswith("http"):
             url = raw
