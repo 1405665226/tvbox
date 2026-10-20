@@ -4,8 +4,7 @@
    "key": "huangguo_py",
    "name": "黄果短剧 py",
    "type": 3,
-   "api": "./py/huangguo.py",
-   "ext": ""
+   "api": "./py/huangguo.py"
   },
   {
    "key": "Hanime",
@@ -15,7 +14,6 @@
    "searchable": 1,
    "recordable": 0,
    "timeout": 60,
-   "ext": "proxy",
    "style": {
     "type": "rect",
     "ratio": 0.68
