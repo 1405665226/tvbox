@@ -35,7 +35,7 @@ function fix(u) {
 function coverUrl(u) {
   u = fix(u).replace(/\?.*$/, '');
   if (!/^https?:\/\//i.test(u)) return '';
-  return getProxy(true) + '&siteKey=huangguo&url=' + encodeURIComponent(u);
+  return getProxy(true) + '&siteKey=huangguo_js&url=' + encodeURIComponent(u);
 }
 
 function imageType(b64) {
