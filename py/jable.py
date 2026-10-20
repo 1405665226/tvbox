@@ -1,20 +1,18 @@
 
-# jable.py
-# FongMi/TV Python Spider
-# api: "./jable.py"
+# coding: utf-8
+# FongMi / TVBox Python Spider
+# Jable
 
 import re
-import html
-from urllib.parse import urljoin, quote
-from base.spider import Spider as BaseSpider
+import html as html_parser
+from urllib.parse import quote, urljoin
+from base.spider import Spider
 
 
-class Spider(BaseSpider):
-
-    host = "https://jable.tv"
+class Spider(Spider):
 
     def init(self, extend=""):
-        self.extend = extend
+        self.host = "https://jable.tv"
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -24,31 +22,39 @@ class Spider(BaseSpider):
             "Referer": self.host + "/",
         }
 
+    def getName(self):
+        return "Jable"
+
     # -------------------------
     # 网络请求
     # -------------------------
 
-    def _get(self, url):
-        # 使用 FongMi Spider 基类提供的 fetch 接口
-        result = self.fetch(url, headers=self.headers)
-
-        if isinstance(result, bytes):
-            return result.decode("utf-8", errors="replace")
-
-        return str(result)
+    def get_html(self, url):
+        response = self.fetch(url, headers=self.headers)
+        return response.text
 
     # -------------------------
-    # HTML 工具
+    # URL 规范化
     # -------------------------
 
-    def _meta(self, page, prop):
-        tags = re.findall(
+    def video_url(self, value):
+        value = str(value).strip()
+
+        if value.startswith(("http://", "https://")):
+            return value
+
+        return urljoin(self.host + "/", value)
+
+    # -------------------------
+    # HTML 元数据
+    # -------------------------
+
+    def get_meta(self, page, prop):
+        for tag in re.findall(
             r"<meta\b[^>]*>",
             page,
             re.I | re.S
-        )
-
-        for tag in tags:
+        ):
             p = re.search(
                 r"""\bproperty\s*=\s*["']([^"']+)["']""",
                 tag,
@@ -61,113 +67,126 @@ class Spider(BaseSpider):
             )
 
             if p and c and p.group(1).lower() == prop.lower():
-                return html.unescape(c.group(1).strip())
+                return html_parser.unescape(c.group(1)).strip()
 
         return ""
 
-    def _video_url(self, value):
-        value = str(value).strip()
-
-        if value.startswith(("http://", "https://")):
-            return value
-
-        if value.startswith("/"):
-            return urljoin(self.host, value)
-
-        value = value.removeprefix("videos/").strip("/")
-        return urljoin(self.host, "/videos/" + value + "/")
-
-    def _cards(self, page):
-        """从列表页提取视频卡片。"""
-        page = html.unescape(page)
-        result = []
-        seen = set()
-
-        # 优先在含视频链接的 HTML 标签中提取封面和标题
-        pattern = re.compile(
-            r'<a\b([^>]*\bhref=["\']([^"\']*/videos/[^"\']+)["\'][^>]*)>'
-            r'(.*?)</a>',
-            re.I | re.S
-        )
-
-        for match in pattern.finditer(page):
-            attrs = match.group(1)
-            href = match.group(2)
-            inner = match.group(3)
-
-            url = self._video_url(href)
-
-            if url in seen:
-                continue
-            seen.add(url)
-
-            title_match = re.search(
-                r"""\btitle=["']([^"']+)["']""",
-                attrs,
-                re.I
-            )
-
-            image_match = re.search(
-                r"""<(?:img|source)\b[^>]*?\b(?:data-src|data-original|src)=["']([^"']+)["']""",
-                inner,
-                re.I | re.S
-            )
-
-            title = (
-                html.unescape(title_match.group(1)).strip()
-                if title_match else ""
-            )
-
-            if not title:
-                title_match = re.search(
-                    r"<(?:h[1-6]|span)[^>]*>(.*?)</(?:h[1-6]|span)>",
-                    inner,
-                    re.I | re.S
-                )
-                if title_match:
-                    title = re.sub(
-                        r"<[^>]+>", "", title_match.group(1)
-                    ).strip()
-
-            pic = (
-                urljoin(self.host, image_match.group(1))
-                if image_match else ""
-            )
-
-            if not title:
-                title = url.rstrip("/").split("/")[-1]
-
-            result.append({
-                "vod_id": url,
-                "vod_name": title,
-                "vod_pic": pic,
-                "vod_remarks": "",
-            })
-
-        return result
-
-    def page(self, items, pg, pagecount=9999):
-        return {
-            "list": items,
-            "page": int(pg),
-            "pagecount": pagecount,
-            "limit": 20,
-            "total": len(items),
-        }
-
     # -------------------------
-    # 首页
+    # 首页分类
     # -------------------------
 
     def homeContent(self, filter):
         return {
             "class": [
-                {"type_id": "latest", "type_name": "最新"},
-            ]
+                {
+                    "type_id": "latest",
+                    "type_name": "最新"
+                }
+            ],
+            "filters": {}
         }
 
+    def homeVideoContent(self):
+        try:
+            page = self.get_html(self.host + "/")
+            return {
+                "list": self.parse_vod_list(page)
+            }
+        except Exception:
+            return {"list": []}
+
     # -------------------------
-    # 分类 / 分页
+    # 视频列表解析
+    # -------------------------
+
+    def parse_vod_list(self, page):
+        vods = []
+        seen = set()
+
+        # 匹配指向 /videos/xxx/ 的链接
+        pattern = re.compile(
+            r"""<a\b([^>]*?)href\s*=\s*["']([^"']*/videos/[^"']+)["']([^>]*)>(.*?)</a>""",
+            re.I | re.S
+        )
+
+        for match in pattern.finditer(page):
+            attrs = match.group(1) + " " + match.group(3)
+            href = html_parser.unescape(match.group(2))
+            inner = match.group(4)
+
+            url = self.video_url(href)
+
+            if url in seen:
+                continue
+
+            # 提取标题
+            title_match = re.search(
+                r"""\btitle\s*=\s*["']([^"']+)["']""",
+                attrs,
+                re.I
+            )
+
+            title = (
+                html_parser.unescape(title_match.group(1)).strip()
+                if title_match else ""
+            )
+
+            if not title:
+                title_match = re.search(
+                    r"""class=["'][^"']*(?:title|video-title)[^"']*["'][^>]*>(.*?)</""",
+                    inner,
+                    re.I | re.S
+                )
+
+                if title_match:
+                    title = re.sub(
+                        r"<[^>]+>", "", title_match.group(1)
+                    )
+                    title = html_parser.unescape(title).strip()
+
+            # 提取缩略图
+            pic_match = re.search(
+                r"""<(?:img|source)\b[^>]*?\b(?:data-src|data-original|src)\s*=\s*["']([^"']+)["']""",
+                inner,
+                re.I | re.S
+            )
+
+            pic = ""
+            if pic_match:
+                pic = urljoin(
+                    self.host,
+                    html_parser.unescape(pic_match.group(1))
+                )
+
+            # 提取时长
+            duration_match = re.search(
+                r"""class=["'][^"']*duration[^"']*["'][^>]*>(.*?)</""",
+                inner,
+                re.I | re.S
+            )
+
+            remarks = ""
+            if duration_match:
+                remarks = re.sub(
+                    r"<[^>]+>", "", duration_match.group(1)
+                ).strip()
+
+            if not title:
+                title = url.rstrip("/").split("/")[-1]
+
+            seen.add(url)
+
+            vods.append({
+                "vod_id": url,
+                "vod_name": title,
+                "vod_pic": pic,
+                "vod_remarks": remarks
+            })
+
+        return vods
+
+    # -------------------------
+    # 分类与分页
     # -------------------------
 
     def categoryContent(self, tid, pg, filter, extend):
@@ -175,26 +194,34 @@ class Spider(BaseSpider):
 
         if tid == "latest":
             url = self.host + "/"
+        elif str(tid).startswith(("http://", "https://", "/")):
+            url = self.video_url(tid)
         else:
-            url = self._video_url(tid)
+            url = self.host + "/"
 
         if page_num > 1:
-            separator = "&" if "?" in url else "?"
-            url += separator + "page=" + str(page_num)
+            sep = "&" if "?" in url else "?"
+            url += sep + "page=" + str(page_num)
 
         try:
-            page = self._get(url)
-            items = self._cards(page)
+            page = self.get_html(url)
+            vods = self.parse_vod_list(page)
 
             return {
-                "list": items,
+                "list": vods,
                 "page": page_num,
-                "pagecount": page_num + 1 if items else page_num,
+                "pagecount": page_num + 1 if vods else page_num,
                 "limit": 20,
-                "total": 0,
+                "total": 0
             }
         except Exception:
-            return self.page([], page_num, 1)
+            return {
+                "list": [],
+                "page": page_num,
+                "pagecount": 0,
+                "limit": 20,
+                "total": 0
+            }
 
     # -------------------------
     # 搜索
@@ -212,39 +239,37 @@ class Spider(BaseSpider):
         )
 
         try:
-            page = self._get(url)
-            items = self._cards(page)
+            page = self.get_html(url)
+            vods = self.parse_vod_list(page)
 
             return {
-                "list": items,
+                "list": vods,
                 "page": page_num,
-                "pagecount": page_num + 1 if items else page_num,
+                "pagecount": page_num + 1 if vods else page_num,
                 "limit": 20,
-                "total": 0,
+                "total": 0
             }
         except Exception:
-            return self.page([], page_num, 1)
+            return {
+                "list": [],
+                "page": page_num,
+                "pagecount": 0,
+                "limit": 20,
+                "total": 0
+            }
 
     # -------------------------
     # 视频详情
     # -------------------------
 
     def detailContent(self, ids):
-        url = self._video_url(ids[0])
-        page = html.unescape(self._get(url))
+        url = self.video_url(ids[0])
+        page = self.get_html(url)
 
-        title = self._meta(page, "og:title")
-        pic = self._meta(page, "og:image")
+        title = self.get_meta(page, "og:title")
+        pic = self.get_meta(page, "og:image")
 
-        if not pic:
-            m = re.search(
-                r"""<video\b[^>]*\bposter=["']([^"']+)""",
-                page,
-                re.I
-            )
-            if m:
-                pic = html.unescape(m.group(1))
-
+        # canonical 地址
         canonical = re.search(
             r"""<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)""",
             page,
@@ -252,25 +277,29 @@ class Spider(BaseSpider):
         )
 
         if canonical:
-            url = urljoin(self.host, canonical.group(1))
+            url = urljoin(
+                self.host,
+                html_parser.unescape(canonical.group(1))
+            )
+
+        # 封面备用
+        if not pic:
+            poster = re.search(
+                r"""<video\b[^>]*\bposter=["']([^"']+)""",
+                page,
+                re.I
+            )
+            if poster:
+                pic = urljoin(
+                    self.host,
+                    html_parser.unescape(poster.group(1))
+                )
 
         if not title:
             title = url.rstrip("/").split("/")[-1]
 
-        # 提取页面声明的 HLS URL
-        match = re.search(
-            r"""\bhlsUrl\s*=\s*(['"])(.*?)\1""",
-            page,
-            re.I | re.S
-        )
-
-        play_url = match.group(2).strip() if match else ""
-
-        if play_url.startswith("//"):
-            play_url = "https:" + play_url
-        elif play_url.startswith("/"):
-            play_url = urljoin(self.host, play_url)
-
+        # 返回详情页供播放器使用。
+        # 不在这里把临时媒体地址当作永久地址保存。
         return {
             "list": [{
                 "vod_id": url,
@@ -278,11 +307,7 @@ class Spider(BaseSpider):
                 "vod_pic": pic,
                 "vod_content": "",
                 "vod_play_from": "Jable",
-                "vod_play_url": (
-                    "正片$" + play_url
-                    if play_url
-                    else "详情页$" + url
-                ),
+                "vod_play_url": "正片$" + url
             }]
         }
 
@@ -292,10 +317,10 @@ class Spider(BaseSpider):
 
     def playerContent(self, flag, id, vipFlags):
         return {
-            "parse": 0,
+            "parse": 1,
             "jx": 0,
-            "url": id,
-            "header": self.headers,
+            "url": self.video_url(id),
+            "header": self.headers
         }
 
     def destroy(self):
