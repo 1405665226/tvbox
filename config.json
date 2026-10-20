@@ -22,7 +22,7 @@
    }
   },
   {
-   "key": "huangguo.js",
+   "key": "huangguo_fongmi",
    "name": "黄果短剧 js",
    "type": 3,
    "api": "https://raw.githubusercontent.com/jinshengchan/huangguo-fongmi/refs/heads/main/huangguo_fongmi.js",
