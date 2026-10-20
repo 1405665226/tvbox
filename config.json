@@ -27,7 +27,7 @@
   },
   {
    "key": "jable",
-   "name": "Jable",
+   "name": "jable",
    "type": 3,
    "api": "./jable.py",
    "searchable": 1,
