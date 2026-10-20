@@ -1,4 +1,4 @@
-// huangguo_fongmi.js
+// huangguo.js
 // FongMi / 影视TV QuickJS Spider adapter
 // Adapted from Yswag/xptv-extensions huangguo.js
 import 'assets://js/lib/crypto-js.js';
@@ -35,7 +35,7 @@ function fix(u) {
 function coverUrl(u) {
   u = fix(u).replace(/\?.*$/, '');
   if (!/^https?:\/\//i.test(u)) return '';
-  return getProxy(true) + '&siteKey=huangguo_fongmi&url=' + encodeURIComponent(u);
+  return getProxy(true) + '&siteKey=huangguo&url=' + encodeURIComponent(u);
 }
 
 function imageType(b64) {
