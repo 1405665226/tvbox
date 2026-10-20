@@ -1,14 +1,14 @@
 {
  "sites": [
   {
-   "key": "huangguo",
-   "name": "黄果短剧",
+   "key": "huangguo.py",
+   "name": "黄果短剧 python",
    "type": 3,
    "api": "./py/huangguo.py",
    "ext": ""
   },
   {
-   "key": "Hanime",
+   "key": "Hanime.py",
    "name": "Hanime",
    "type": 3,
    "api": "./py/Hanime.py",
@@ -22,13 +22,14 @@
    }
   },
   {
-   "key": "jable",
-   "name": "Jable",
+   "key": "huangguo.js",
+   "name": "黄果短剧 js",
    "type": 3,
-   "api": "./js/jable.js",
+   "api": "./js/huangguo.js",
    "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 0
+   "quickSearch": 0,
+   "filterable": 0,
+   "changeable": 0
   }
  ],
  "spider": "https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/pg.jar",
