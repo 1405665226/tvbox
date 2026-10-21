@@ -1,21 +1,42 @@
 {
-  "urls":
-  [
-    {
-      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/hongguo.json",
-      "name": "红果短剧"
-    },
-    {
-      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/huangguo_js.json",
-      "name": "黄果短剧 js"
-    },
-    {
-      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/huangguo_py.json",
-      "name": "黄果短剧 py"
-    },
-    {
-      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/Hanime.json",
-      "name": "Hanime"
-    }
-  ]
+ "sites": [
+  {
+   "key": "hongguo",
+   "name": "红果短剧",
+   "type": 3,
+   "api": "./py/hongguo.py",
+   "searchable": 1,
+   "quickSearch": 1,
+   "filterable": 1
+  },
+  {
+   "key": "huangguo_js",
+   "name": "黄果短剧 js",
+   "type": 3,
+   "api": "./js/huangguo.js",
+   "searchable": 1,
+   "quickSearch": 0,
+   "filterable": 0,
+   "changeable": 0
+  },
+  {
+   "key": "huangguo_py",
+   "name": "黄果短剧 py",
+   "type": 3,
+   "api": "./py/huangguo.py"
+  },
+  {
+   "key": "Hanime",
+   "name": "Hanime",
+   "type": 3,
+   "api": "./py/Hanime.py",
+   "searchable": 1,
+   "recordable": 0,
+   "timeout": 60,
+   "style": {
+    "type": "rect",
+    "ratio": 0.68
+   }
+  }
+ ]
 }
