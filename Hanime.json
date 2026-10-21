@@ -1,0 +1,17 @@
+{
+ "sites": [
+  {
+   "key": "Hanime",
+   "name": "Hanime",
+   "type": 3,
+   "api": "./py/Hanime.py",
+   "searchable": 1,
+   "recordable": 0,
+   "timeout": 60,
+   "style": {
+    "type": "rect",
+    "ratio": 0.68
+   }
+  }
+ ]
+}
