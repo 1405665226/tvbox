@@ -1,0 +1,21 @@
+{
+  "urls":
+  [
+    {
+      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/hongguo.json",
+      "name": "红果短剧"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/huangguo_js.json",
+      "name": "黄果短剧 js"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/huangguo_py.json",
+      "name": "黄果短剧 py"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/1405665226/tvbox/refs/heads/main/Hanime.json",
+      "name": "Hanime"
+    }
+  ]
+}
