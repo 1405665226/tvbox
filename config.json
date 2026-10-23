@@ -26,6 +26,13 @@
    "api": "./py/huangguo.py"
   },
   {
+   "key": "91porn",
+   "name": "91porn",
+   "type": 3,
+   "api": "./py/91porn.py",
+   "ext": ""
+  },
+  {
    "key": "Hanime",
    "name": "Hanime",
    "type": 3,
